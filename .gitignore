@@ -4,5 +4,19 @@
 *~
 .env
 .env.*
+!.env.example
 node_modules/
 .claude/
+
+# Security: real patterns file contains project-specific secrets (Category 3)
+# Only .toprig-secret-patterns.example is committed (generic template)
+.toprig-secret-patterns
+!.toprig-secret-patterns.example
+
+# Release gate approval tracking (local-only)
+.toprig-approved-shas
+
+# Keys and certificates
+*.key
+*.pem
+*.p12
