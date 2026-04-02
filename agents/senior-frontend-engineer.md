@@ -1321,7 +1321,7 @@ npx dev-server run:android  # Rebuilds native Android app
 **Example Handoff from Claude:**
 ```
 Claude: "I've created worktree for item-detail-screen feature.
-Working directory: ${PROJECT_ROOT}/.worktrees/feature-my-feature/
+Working directory: ${PROJECT_ROOT}/worktree-dir/feature-my-feature/
 Branch: feature/item-detail-screen (already created and checked out)
 
 Please implement the UI components in this worktree. All your work will be isolated from main."
