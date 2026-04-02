@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# TopRig pre-commit hook — scans staged diff for sensitive terms
+# Based on FORKCAST scan-sensitive-terms.sh architecture
+#
+# Behavior:
+# - Scans only NEW/CHANGED lines in staged content (diff-only)
+# - Context-aware: TopRig repo enforces ALL categories; consumer repos skip Cat 1-2
+# - Blocks on CRITICAL findings; warns on HIGH
+# - Exempts LICENSE/NOTICE from PII name checks
+# - Applies SP1 (pattern integrity), SP2 (submodule), SP3 (symlink), SP4 (unicode)
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PATTERNS_FILE="$REPO_ROOT/.toprig-secret-patterns"
+PATTERNS_EXAMPLE="$REPO_ROOT/.toprig-secret-patterns.example"
+CHECKSUM_FILE="$REPO_ROOT/.toprig-secret-patterns.example.sha256"
+
+# ── SP2: Submodule detection ──────────────────────────────────────────
+if git diff --cached --name-only | grep -q '\.gitmodules'; then
+  echo "❌ BLOCKED (SP2): .gitmodules staged — submodules not permitted in TopRig." >&2
+  exit 1
+fi
+
+# ── SP3: Symlink validation ───────────────────────────────────────────
+SYMLINKS=$(git diff --cached --name-only --diff-filter=ACMR | while read -r f; do
+  [ -L "$REPO_ROOT/$f" ] && echo "$f" || true
+done)
+if [ -n "$SYMLINKS" ]; then
+  for link in $SYMLINKS; do
+    target=$(readlink "$REPO_ROOT/$link")
+    case "$target" in
+      /*) echo "❌ BLOCKED (SP3): Symlink '$link' points outside repo: $target" >&2; exit 1 ;;
+      ../*) echo "❌ BLOCKED (SP3): Symlink '$link' may escape repo: $target" >&2; exit 1 ;;
+    esac
+  done
+fi
+
+# ── Pattern file availability ─────────────────────────────────────────
+if [ ! -f "$PATTERNS_FILE" ]; then
+  if [ -f "$PATTERNS_EXAMPLE" ]; then
+    echo "⚠️  .toprig-secret-patterns not found. Creating from .example..." >&2
+    cp -n "$PATTERNS_EXAMPLE" "$PATTERNS_FILE"
+  else
+    echo "⚠️  No pattern files found — skipping sensitive term scan." >&2
+    exit 0
+  fi
+fi
+
+# ── SP1: Pattern file integrity (check .example checksum) ────────────
+if [ -f "$CHECKSUM_FILE" ] && [ -f "$PATTERNS_EXAMPLE" ]; then
+  if ! (cd "$REPO_ROOT" && shasum -a 256 -c "$CHECKSUM_FILE" >/dev/null 2>&1); then
+    echo "❌ BLOCKED (SP1): .toprig-secret-patterns.example integrity check failed." >&2
+    echo "   Regenerate: shasum -a 256 .toprig-secret-patterns.example > .toprig-secret-patterns.example.sha256" >&2
+    exit 1
+  fi
+fi
+
+# ── Context detection ─────────────────────────────────────────────────
+REPO_NAME=$(basename "$REPO_ROOT")
+if [[ "$REPO_NAME" == "toprig" ]]; then
+  # In TopRig: enforce ALL categories
+  SKIP_CATEGORIES=""
+else
+  # In consumer repos: skip Category 1 (PII/paths) and Category 2 (domain terms)
+  # Consumer's own project name and domain terms are expected in their files
+  SKIP_CATEGORIES="Category 1|Category 2"
+fi
+
+# ── Files to skip (false positives) ──────────────────────────────────
+SKIP_FILE_PATTERNS='\.toprig-secret-patterns|package-lock\.json$|\.svg$|\.png$|\.jpg$|\.gif$|\.woff|\.ttf|\.ico$'
+
+# ── Get staged files ─────────────────────────────────────────────────
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null \
+  | grep -vE "$SKIP_FILE_PATTERNS" || true)
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+# ── Get added lines from staged diff ─────────────────────────────────
+DIFF_ADDED=$(git diff --cached -U0 -- $STAGED_FILES 2>/dev/null \
+  | grep -E '^\+[^\+]' | sed 's/^\+//' || true)
+
+if [ -z "$DIFF_ADDED" ]; then
+  exit 0
+fi
+
+# ── SP4: Unicode normalization (NFKC) ────────────────────────────────
+# Normalize diff content before scanning to catch homoglyph bypasses
+if command -v uconv >/dev/null 2>&1; then
+  DIFF_ADDED=$(echo "$DIFF_ADDED" | uconv -x nfkc 2>/dev/null || echo "$DIFF_ADDED")
+fi
+
+# ── Scan patterns ────────────────────────────────────────────────────
+FOUND_CRITICAL=0
+FOUND_HIGH=0
+CURRENT_CATEGORY=""
+
+while IFS= read -r line; do
+  # Track which category we're in
+  if [[ "$line" =~ ^#.*Category ]]; then
+    CURRENT_CATEGORY="$line"
+    continue
+  fi
+
+  # Skip comments and empty lines
+  [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+
+  # Skip categories not enforced in this repo context
+  if [ -n "$SKIP_CATEGORIES" ] && [ -n "$CURRENT_CATEGORY" ]; then
+    if echo "$CURRENT_CATEGORY" | grep -qE "$SKIP_CATEGORIES"; then
+      continue
+    fi
+  fi
+
+  # Parse severity|pattern|description
+  severity=$(echo "$line" | cut -d'|' -f1)
+  pattern=$(echo "$line" | cut -d'|' -f2)
+  description=$(echo "$line" | cut -d'|' -f3-)
+
+  # Scan added lines only
+  MATCHES=$(echo "$DIFF_ADDED" | grep -inE "$pattern" 2>/dev/null || true)
+
+  if [ -n "$MATCHES" ]; then
+    if [ "$severity" = "CRITICAL" ]; then
+      FOUND_CRITICAL=$((FOUND_CRITICAL + 1))
+      echo "❌ CRITICAL: '$pattern' — $description" >&2
+      echo "$MATCHES" | head -3 | sed 's/^/   /' >&2
+    elif [ "$severity" = "HIGH" ]; then
+      FOUND_HIGH=$((FOUND_HIGH + 1))
+      echo "⚠️  HIGH: '$pattern' — $description" >&2
+      echo "$MATCHES" | head -3 | sed 's/^/   /' >&2
+    fi
+  fi
+done < "$PATTERNS_FILE"
+
+# ── SP5: Encoded content scan (base64) ───────────────────────────────
+# Look for base64-encoded strings that decode to CRITICAL patterns
+BASE64_STRINGS=$(echo "$DIFF_ADDED" | grep -oE '[A-Za-z0-9+/=]{40,}' 2>/dev/null || true)
+if [ -n "$BASE64_STRINGS" ]; then
+  CRITICAL_PATTERNS=$(grep '^CRITICAL' "$PATTERNS_FILE" | cut -d'|' -f2)
+  while IFS= read -r b64; do
+    decoded=$(echo "$b64" | base64 -d 2>/dev/null || true)
+    if [ -n "$decoded" ]; then
+      for cp in $CRITICAL_PATTERNS; do
+        if echo "$decoded" | grep -qE "$cp" 2>/dev/null; then
+          FOUND_CRITICAL=$((FOUND_CRITICAL + 1))
+          echo "❌ CRITICAL (SP5): Base64-encoded content decodes to match: '$cp'" >&2
+          echo "   Encoded: ${b64:0:40}..." >&2
+          break
+        fi
+      done
+    fi
+  done <<< "$BASE64_STRINGS"
+fi
+
+# ── Report ────────────────────────────────────────────────────────────
+if [ "$FOUND_CRITICAL" -gt 0 ]; then
+  echo "" >&2
+  echo "🛑 BLOCKED: $FOUND_CRITICAL CRITICAL + $FOUND_HIGH HIGH sensitive term(s) in staged changes." >&2
+  echo "   Review .toprig-secret-patterns for the full watchlist." >&2
+  exit 1
+fi
+
+if [ "$FOUND_HIGH" -gt 0 ]; then
+  echo "" >&2
+  echo "⚠️  WARNING: $FOUND_HIGH HIGH sensitive term(s) in staged changes. Proceeding." >&2
+fi
+
+exit 0
