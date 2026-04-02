@@ -1,0 +1,172 @@
+---
+name: spec-hardening
+description: Use when PRD, design spec, architecture doc, or implementation plan needs iterative multi-agent review to eliminate ambiguity, risk, and implementation drift. Triggers on "harden spec", "harden PRD", "harden design", "harden architecture", "harden plan", "spec hardening", "review and harden", or when user wants iterative multi-pass review of any SDLC document before implementation.
+---
+
+# Agentic Spec Hardening Skill
+
+## Purpose
+Systematically harden any SDLC document using focused multi-agent review passes to eliminate ambiguity, risk, and implementation drift.
+
+Supported document types:
+- Product Requirements (PRD)
+- Design Specifications
+- Architecture Documents
+- Implementation Plans
+- Governance / Process Improvement Plans
+
+---
+
+## Core Protocol (applies to every pass)
+
+Each agent must:
+
+1. Critique the document using its domain checklist
+2. Identify gaps, risks, contradictions, and vague language
+3. Rewrite the document tighter and more explicit
+4. Promote assumptions into concrete requirements
+5. Carry all fixes forward into the next version
+
+Rules:
+- Always output the improved document
+- Never summarize
+- Remove ambiguity
+- Make requirements testable
+
+---
+
+## Step 1: Document Classification
+
+Classify the input document as one of:
+
+PRD | Design | Architecture | Implementation | Governance
+
+Use dominant intent if mixed.
+
+---
+
+## Step 2: Agent Routing
+
+### PRD
+Run agents in order:
+PM → Architect → Frontend → Backend → Security → QA → Research → DevOps
+
+### Design
+Run agents in order:
+Design → PM → Frontend → Backend → QA → Accessibility → Security
+
+### Architecture
+Run agents in order:
+Architect → PM → Security → Frontend → Backend → QA → Research → DevOps
+
+### Implementation Plan
+Run agents in order:
+PM → Architect → Frontend → Backend → Security → QA → Research → DevOps
+
+### Governance / Process
+Run agents in order:
+Governance → PM → Security → Frontend → Backend → QA → Research → DevOps
+
+---
+
+## Step 3: Agent Checklists
+
+Each agent must explicitly evaluate:
+
+### PM Agent
+- Clear goals and outcomes
+- Success metrics
+- Scope realism
+- Priority clarity
+- User value
+
+### Design Agent
+- Complete user flows
+- States and edge cases
+- Accessibility and usability
+- Responsiveness
+- Handoff readiness
+
+### Architect Agent
+- System boundaries
+- Service ownership
+- APIs and contracts
+- Data flows
+- Scalability
+- Failure isolation
+
+### Security Agent
+- Authentication and authorization
+- Data privacy
+- Trust boundaries
+- Compliance risks
+- Secure defaults
+
+### Frontend Agent
+- API usability
+- Performance impact
+- Error handling
+- State management
+- UX feasibility
+
+### Backend Agent
+- Data models
+- Transactions
+- Consistency
+- Idempotency
+- Scaling logic
+
+### QA Agent
+- Testability
+- Edge cases
+- Automation readiness
+- Failure modes
+- Acceptance criteria
+
+### Research Agent
+- Assumptions validation
+- Evidence backing
+- User behavior realism
+- Load expectations
+
+### DevOps Agent
+- Deployment strategy
+- Observability
+- Rollback plans
+- Scaling infra
+- Cost risks
+
+### Governance Agent
+- Ownership clarity
+- Decision rights
+- Enforcement mechanisms
+- Compliance mapping
+- Adoption friction
+
+---
+
+## Step 4: Quality Gate (mandatory)
+
+After each agent pass, score:
+
+- Clarity (1-10)
+- Implementability (1-10)
+- Risk exposure (1-10)
+
+If any score <9:
+Fix issues before proceeding to the next agent.
+
+---
+
+## Step 5: Final Output
+
+Return:
+
+- The fully hardened document
+- With all improvements integrated
+- With explicit, testable requirements
+- With risks eliminated or controlled
+
+Do not include commentary.
+
+Only output the final hardened version.
