@@ -1264,7 +1264,7 @@ changelog:
     summary: Complete redesign with Lottie animations replacing static SVG
     changes:
       added:
-        - Lottie animation file (restaurant-food-loading.json)
+        - Lottie animation file (branded-loading-animation.json)
         - Loading state management with progress tracking
         - Photo preview in loading screen
       removed:

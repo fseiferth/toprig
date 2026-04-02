@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
 # TopRig pre-commit hook — scans staged diff for sensitive terms
-# Based on FORKCAST scan-sensitive-terms.sh architecture
+# Based on scan-sensitive-terms.sh reference implementation
 #
 # Behavior:
 # - Scans only NEW/CHANGED lines in staged content (diff-only)

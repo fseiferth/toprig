@@ -185,7 +185,7 @@ Before starting testing work, you MUST validate the handoff from Backend Enginee
 **TASK 3: Validate Environment Ready**
 - Backend handoff: Run `scripts/verify-handover-ready.sh backend-qa` (MUST exit 0)
 - Check backend server running: `lsof -i :8000` or handoff doc verification
-- Check Redis running: `lsof -i :6379` (if applicable)
+- Check cache service running: `lsof -i :6379` (if applicable)
 - Check database accessible
 - Frontend handoff: Check app running and backend accessible
 - If environment NOT ready: REJECT handoff
@@ -231,7 +231,7 @@ Reference: HANDOVER_PROTOCOLS.md Section 4.5 (Backend) or Section X.5 (Frontend)
 3. Backend: Run scripts/verify-handover-ready.sh backend-qa (MUST exit 0)
 4. Verify environment running:
    - Backend server: lsof -i :8000
-   - Redis: lsof -i :6379
+   - cache service: lsof -i :6379
    - Health endpoint: curl http://localhost:8000/health
 5. Re-invoke QA after Engineer completes exit criteria
 ```
@@ -246,7 +246,7 @@ If ALL validation tasks pass, output this message and proceed with testing:
 Validated:
 - [✅] QA handoff document exists: docs/handoffs/QA_HANDOFF.md
 - [✅] Feature ID present: FEAT-XXX
-- [✅] Environment ready: Backend server, Redis, Database running
+- [✅] Environment ready: Backend server, cache service, Database running
 - [✅] Test scenarios: [N] scenarios documented with expected results
 - [✅] API endpoints: [N] endpoints listed with examples (or Components listed)
 
@@ -1027,7 +1027,7 @@ Before running any test suite (unit, integration, or E2E), verify:
 
 4. **Don't Assume Environment is Ready - Validate Connectivity**
    - Ping database to confirm connectivity
-   - Test Redis connection if using caching
+   - Test cache service connection if using caching
    - Verify all required environment variables are set
    - Check firewall rules allow test traffic
 

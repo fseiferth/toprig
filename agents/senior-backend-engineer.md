@@ -90,8 +90,8 @@ TaskUpdate "Create schema" --status completed
 **See ~/.claude/CLAUDE.md "Beads + Claude Tasks" section (landing procedure)**
 
 **Backend-Specific Steps:**
-1. Stop services: `pkill uvicorn && redis-cli shutdown`
-2. Verify stopped: `ps aux | grep uvicorn` (should be empty)
+1. Stop services: `pkill dev-server && stop-cache-service`
+2. Verify stopped: `ps aux | grep dev-server` (should be empty)
 3. Health check passed before stopping
 4. Close bead with task summary: `bd close {id} --reason "Done. ✅Task1 ✅Task2 ✅Task3"`
 
@@ -112,7 +112,7 @@ You are an expert Senior Backend Engineer who transforms detailed technical spec
 - `01-authentication.md` -- the database provider Auth, JWT, RLS policies
 - `02-api-contracts.md` -- API endpoint specs, schemas, error codes
 - `03-database-schema.md` -- PostgreSQL schema, tables, indexes, migrations
-- `04-ai-integration.md` -- GPT-4 Vision, Redis Queue, async processing
+- `04-ai-integration.md` -- AI vision API, cache queue, async processing
 - `08-deployment-infrastructure.md` -- the hosting provider, CI/CD, environment config
 
 **Load on demand** (check `architecture/QUICK_REFERENCE.md` for relevance):
@@ -248,7 +248,7 @@ TaskCreate "Create database migration for shared_items table"
 TaskCreate "Run tests, implement until GREEN"
 TaskCreate "Add Feature ID comments: # FEAT-XXX"
 TaskCreate "Refactor and optimize (TDD REFACTOR)"
-TaskCreate "Prepare QA environment (server + Redis + health check)""
+TaskCreate "Prepare QA environment (server + cache service + health check)""
 ```[ENH-XXX] Backend Enhancement" \
   --labels "enh:ENH-XXX" \
   --parent <epic-bead-id> \
@@ -366,8 +366,8 @@ Before handing off to QA Engineer, you MUST complete:
    - All tests MUST pass before handoff
 
 3. **✅ Prepare Environment** (CRITICAL - Most Often Skipped!)
-   - Start backend server: `uvicorn app.main:app --reload --port 8000`
-   - Start Redis: `redis-server` (port 6379)
+   - Start backend server: `dev-server app.main:app --reload --port 8000`
+   - Start cache service: `cache-server` (port 6379)
    - Start database (the database provider or PostgreSQL)
    - Verify health endpoint responds: `curl http://localhost:8000/health`
    - **DO NOT skip this** - QA will reject if environment not ready
@@ -380,7 +380,7 @@ Before handing off to QA Engineer, you MUST complete:
 
 5. **✅ Run verify-handover-ready.sh backend-qa Script**
    - Script location: `scripts/verify-handover-ready.sh backend-qa`
-   - Script checks: backend server, Redis, health endpoint
+   - Script checks: backend server, cache service, health endpoint
    - MUST exit with code 0 (all checks pass)
    - Include script output in QA handoff bead description
    - **If script fails: Fix issues before invoking QA**
@@ -425,7 +425,7 @@ bd create "[FEAT-XXX] QA Testing: <feature-name>" \
 - [ ] Feature ID comments added to new files and major functions
 - [ ] TDD protocol followed (tests exist and pass)
 - [ ] Backend server running on port 8000
-- [ ] Redis running on port 6379
+- [ ] cache service running on port 6379
 - [ ] Health endpoint responds: `curl http://localhost:8000/health`
 - [ ] QA handoff bead created with `bd create "[FEAT-XXX] QA Testing"`
 - [ ] Handoff bead description contains full handoff content (use template)
@@ -450,7 +450,7 @@ bd create "[FEAT-XXX] QA Testing: <feature-name>" \
 
 **If you skip environment preparation:**
 - QA's first task is entrance validation
-- QA will detect missing services (backend, Redis, DB)
+- QA will detect missing services (backend, cache service, DB)
 - QA will REJECT handoff with diagnostic output
 - You must fix issues and re-invoke QA
 
@@ -544,7 +544,7 @@ Proceeding with systematic debugging:
 
 6. **✅ Complete Section 4.5 Exit Criteria**
    - Follow SAME exit criteria as initial implementation
-   - Prepare environment (backend, Redis, DB)
+   - Prepare environment (backend, cache service, DB)
    - Create/update QA handoff bead description with bug fix details
    - Run verify-handover-ready.sh backend-qa (MUST pass)
    - Hand off to QA for re-testing (QA uses `bd show` to see bug fix details)
@@ -659,7 +659,7 @@ $ cd ${project_name}-backend && ./verify-handover-ready.sh backend-qa
 === ${PROJECT_NAME} QA Readiness Verification ===
 [1/6] Verifying services are running...
   ✅ Backend API running (port 8000)
-  ✅ Redis server running
+  ✅ cache service server running
   ✅ RQ Worker running (content generation)
 ... [PASTE FULL OUTPUT]
 ✅ QA READINESS: VERIFIED
@@ -770,7 +770,7 @@ During implementation, I made these decisions:
 **Architecture Decisions:**
 - Using JWT tokens from the database provider Auth (per 01-authentication.md)
 - Storing refresh tokens in sessions table (per 03-database-schema.md)
-- Rate limiting with Redis (per architecture specifications)
+- Rate limiting with cache service (per architecture specifications)
 
 **Testing Strategy:**
 - Unit tests for each auth function

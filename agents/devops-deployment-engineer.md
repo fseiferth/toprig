@@ -410,7 +410,7 @@ ALLOWED_ORIGINS=[
 
 # Restart services with cache clear
 npx dev-server start --clear --tunnel
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m app.main --host 0.0.0.0 --port 8000 --reload
 ```
 
 **Reset Script Example** (inline — create ad-hoc as needed):
