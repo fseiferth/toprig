@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 2
+
+      - name: Verify pattern file integrity (SP1)
+        run: |
+          if [ -f .toprig-secret-patterns.example.sha256 ]; then
+            sha256sum -c .toprig-secret-patterns.example.sha256
+          else
+            echo "⚠️ No checksum file found — skipping integrity check"
+          fi
+
+      - name: TruffleHog entropy scan
+        uses: trufflesecurity/trufflehog@8a8ef8526279daa4e71e253fce4c3e8be4f0fec9 # v3.82.13
+        with:
+          extra_args: --fail --no-update --since-commit HEAD~1
+
+      - name: Custom pattern scan (CRITICAL/HIGH)
+        run: |
+          PATTERNS_FILE=".toprig-secret-patterns.example"
+          if [ ! -f "$PATTERNS_FILE" ]; then
+            echo "❌ Pattern file not found"
+            exit 1
+          fi
+
+          FOUND=0
+          while IFS= read -r line; do
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+            severity=$(echo "$line" | cut -d'|' -f1)
+            pattern=$(echo "$line" | cut -d'|' -f2)
+            description=$(echo "$line" | cut -d'|' -f3-)
+
+            if [ "$severity" = "CRITICAL" ] || [ "$severity" = "HIGH" ]; then
+              MATCHES=$(git diff HEAD~1 --diff-filter=ACMR -U0 | grep -E '^\+[^\+]' | sed 's/^\+//' | grep -inE "$pattern" 2>/dev/null || true)
+              if [ -n "$MATCHES" ]; then
+                echo "❌ $severity: $pattern — $description"
+                echo "$MATCHES" | head -5 | sed 's/^/   /'
+                FOUND=$((FOUND + 1))
+              fi
+            fi
+          done < "$PATTERNS_FILE"
+
+          if [ "$FOUND" -gt 0 ]; then
+            echo "🛑 $FOUND CRITICAL/HIGH pattern(s) found"
+            exit 1
+          fi
+          echo "✅ Custom pattern scan clean"
+
+      - name: Encoded content scan (SP5)
+        run: |
+          DIFF_ADDED=$(git diff HEAD~1 --diff-filter=ACMR -U0 | grep -E '^\+[^\+]' | sed 's/^\+//' || true)
+          if [ -z "$DIFF_ADDED" ]; then
+            echo "✅ No added lines to scan"
+            exit 0
+          fi
+
+          BASE64_STRINGS=$(echo "$DIFF_ADDED" | grep -oE '[A-Za-z0-9+/=]{40,}' 2>/dev/null || true)
+          FOUND=0
+          if [ -n "$BASE64_STRINGS" ]; then
+            CRITICAL_PATTERNS=$(grep '^CRITICAL' .toprig-secret-patterns.example | cut -d'|' -f2)
+            while IFS= read -r b64; do
+              decoded=$(echo "$b64" | base64 -d 2>/dev/null || true)
+              if [ -n "$decoded" ]; then
+                for cp in $CRITICAL_PATTERNS; do
+                  if echo "$decoded" | grep -qE "$cp" 2>/dev/null; then
+                    echo "❌ CRITICAL (SP5): Base64 decodes to match: $cp"
+                    FOUND=$((FOUND + 1))
+                    break
+                  fi
+                done
+              fi
+            done <<< "$BASE64_STRINGS"
+          fi
+
+          if [ "$FOUND" -gt 0 ]; then
+            exit 1
+          fi
+          echo "✅ Encoded content scan clean"
+
+      - name: Check for .env files
+        run: |
+          ENV_FILES=$(find . -name '.env' -o -name '.env.*' | grep -v '.env.example' | grep -v '.git/' || true)
+          if [ -n "$ENV_FILES" ]; then
+            echo "❌ .env file(s) found in repo:"
+            echo "$ENV_FILES"
+            exit 1
+          fi
+          echo "✅ No .env files"
+
+      - name: Check for backup files
+        run: |
+          BACKUPS=$(find . -name '*.pre-*' -o -name '*.bak' -o -name '*.backup' | grep -v '.git/' || true)
+          if [ -n "$BACKUPS" ]; then
+            echo "❌ Backup file(s) found:"
+            echo "$BACKUPS"
+            exit 1
+          fi
+          echo "✅ No backup files"
+
+      - name: Submodule check (SP2)
+        run: |
+          if [ -f .gitmodules ]; then
+            echo "❌ .gitmodules found — submodules not permitted"
+            exit 1
+          fi
+          echo "✅ No submodules"
+
+      - name: Binary file check (SP12)
+        run: |
+          ALLOWLIST='\.png$|\.ico$|\.woff2?$|\.ttf$'
+          BINARIES=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null | while read -r f; do
+            if file "$f" 2>/dev/null | grep -qv 'text\|empty\|JSON\|XML'; then
+              echo "$f" | grep -vE "$ALLOWLIST" || true
+            fi
+          done)
+          # Also check all tracked files on PR
+          TRACKED_BINARIES=$(git ls-files | while read -r f; do
+            if [ -f "$f" ] && file "$f" 2>/dev/null | grep -qv 'text\|empty\|JSON\|XML'; then
+              echo "$f" | grep -vE "$ALLOWLIST" || true
+            fi
+          done)
+          if [ -n "$TRACKED_BINARIES" ]; then
+            echo "❌ Non-allowed binary file(s) found:"
+            echo "$TRACKED_BINARIES"
+            exit 1
+          fi
+          echo "✅ Binary file check passed"
