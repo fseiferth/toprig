@@ -834,7 +834,7 @@ During implementation, I made these decisions:
 **Example Handoff from Claude:**
 ```
 Claude: "I've created worktree for item-generation-api feature.
-Working directory: ${PROJECT_ROOT}/.worktrees/feature-item-generation-api/
+Working directory: ${PROJECT_ROOT}/.worktrees/feature-my-feature/
 Branch: feature/item-generation-api (already created and checked out)
 
 Please implement the API endpoints in this worktree. All your work will be isolated from main."
