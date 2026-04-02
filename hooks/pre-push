@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# TopRig pre-push hook — blocks push unless release gate has approved the SHA
+# Applies SP13 (push audit logging)
+#
+# The toprig-release-gate skill is the ONLY path to publishing.
+# This hook enforces that structurally.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+APPROVED_FILE="$REPO_ROOT/.toprig-approved-shas"
+CURRENT_SHA=$(git rev-parse HEAD)
+AUDIT_LOG="${HOME}/.toprig/push-audit-log.yml"
+
+# ── Private remote detection ──────────────────────────────────────────
+PRIVATE_REMOTES_FILE="$REPO_ROOT/.toprig-private-remotes"
+REMOTE_URL="$1"
+
+if [ -f "$PRIVATE_REMOTES_FILE" ]; then
+  while IFS= read -r private_url; do
+    [[ "$private_url" =~ ^#.*$ || -z "$private_url" ]] && continue
+    if echo "$REMOTE_URL" | grep -qi "$private_url"; then
+      echo "═══════════════════════════════════════════════" >&2
+      echo "BLOCKED: Push target matches a known private remote." >&2
+      echo "Remote: $REMOTE_URL" >&2
+      echo "Matched: $private_url" >&2
+      echo "═══════════════════════════════════════════════" >&2
+      exit 1
+    fi
+  done < "$PRIVATE_REMOTES_FILE"
+fi
+
+# ── SP13: Audit logging ──────────────────────────────────────────────
+mkdir -p "$(dirname "$AUDIT_LOG")"
+{
+  echo "- timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "  sha: $CURRENT_SHA"
+  echo "  branch: $(git rev-parse --abbrev-ref HEAD)"
+  echo "  remote: ${REMOTE_URL:-unknown}"
+  echo "  outcome: pending"
+} >> "$AUDIT_LOG"
+
+# ── Release gate check ───────────────────────────────────────────────
+if ! grep -q "$CURRENT_SHA" "$APPROVED_FILE" 2>/dev/null; then
+  # Update audit log outcome
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    sed -i '' "s/outcome: pending$/outcome: BLOCKED/" "$AUDIT_LOG"
+  else
+    sed -i "s/outcome: pending$/outcome: BLOCKED/" "$AUDIT_LOG"
+  fi
+
+  echo "═══════════════════════════════════════════════" >&2
+  echo "BLOCKED: TopRig release gate has not approved this commit." >&2
+  echo "" >&2
+  echo "Run the toprig-release-gate skill first:" >&2
+  echo "  toprig release-gate" >&2
+  echo "" >&2
+  echo "SHA: $CURRENT_SHA" >&2
+  echo "═══════════════════════════════════════════════" >&2
+  exit 1
+fi
+
+# Update audit log outcome
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  sed -i '' "s/outcome: pending$/outcome: APPROVED/" "$AUDIT_LOG"
+else
+  sed -i "s/outcome: pending$/outcome: APPROVED/" "$AUDIT_LOG"
+fi
+
+echo "✅ Release gate approval verified for ${CURRENT_SHA:0:8}" >&2
