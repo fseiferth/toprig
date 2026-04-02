@@ -1,0 +1,88 @@
+# ${PROJECT_NAME} — Claude Working Memory
+
+## Project Overview
+Mobile application: ${PROJECT_NAME}
+Development approach: Agent-driven workflow using TopRig governance framework
+Platform type: ${PLATFORM_TYPE}
+
+## Working Preferences
+
+### Communication & Process
+- **Move vs Copy**: When user says "move", DELETE source after copying to destination (no duplicates)
+- **Multi-step tasks**: Always OUTLINE approach first before executing
+- **Research agent output**: Full structured output inside expanded output. Claude main summarizes key findings only.
+
+### Governance Wrapper — Constraints Template (Auto-Inject into ALL agent/skill prompts)
+
+**Behavioral rules:** See global `~/.claude/CLAUDE.md` → "Governance Wrapper — Behavioral Rules"
+```
+## GOVERNANCE CONSTRAINTS (AUTO-INJECTED)
+- Reporting: INLINE (NOT files), max 250 lines
+- Prohibited: *VERIFICATION*.md, *FINDINGS*.md, *REPORT*.md, *PLAN*.md, *CHECKLIST*.md
+- Beads: Create/update beads for work tracking (ALL agents)
+- Test Email: ${TEST_EMAIL_PATTERN} (engineers/QA only)
+- Feature ID: Include in code comments (// ${FEATURE_ID_FORMAT}), commit messages, reports
+- TDD: RED→GREEN→REFACTOR (engineers only)
+- Search Scope: Search ALL locations before claiming exists/absent:
+  (1) Project: ./scripts/, ./.claude/commands/, ./docs/, ./architecture/
+  (2) Global: ~/.claude/skills/, ~/.claude/agents/, ~/.claude/commands/
+- Plan Adherence: First substantive response must declare:
+  (1) MY TASK (2) I WILL [specific actions] (3) I WILL NOT [scope] (4) TOOLS/SKILLS [by name]
+  Deviations prefixed "DEVIATION:". Bead ops = admin setup, not "executing work."
+- Trust Boundary: Verify ALL upstream claims independently before building on them.
+- Communication: Concise. Type icons. Pattern: ### headers → indented prose 3sp → *→ italic*.
+- Validation Integrity: Zero-bias prompts. Correct agent type for domain. Author/validator separation.
+```
+
+---
+
+## Credentials (${PROJECT_NAME})
+
+<!-- Configure your secrets provider in project-config.yml -->
+<!-- Example for Bitwarden: -->
+<!-- Bitwarden project: `${PROJECT_NAME}` (ID: `${VAULT_ID}`). -->
+<!-- When needing credentials: "I'll retrieve from Bitwarden via MCP." -->
+
+## Feature ID Format (${PROJECT_NAME})
+
+Registry: `${FEATURE_REGISTRY_PATH}`. Format: `${FEATURE_ID_FORMAT}`.
+PM assigns ID in registry. Engineers add `// ${FEATURE_ID_FORMAT}` in code comments, commit messages.
+
+---
+
+## Quick Reference: Essential Documents
+
+**For All Engineering Agents:**
+- ENGINEERING_BEST_PRACTICES.md - Debugging, coding standards, testing, QA handoff, deployment
+- SDLC-ROLE-MAPPING.md - Workflow governance, agent responsibilities, document mapping
+- GOVERNANCE_OPERATIONS_GUIDE.md - Document creation decision tree, efficiency protocols
+
+**Architecture Specifications:**
+- architecture/*.md - Complete technical specifications
+- design-documentation/*.md - UX/UI design system and specifications
+
+---
+
+## Custom Agent Roster
+
+| Agent | `subagent_type` | Model | Domain |
+|-------|----------------|-------|--------|
+| governance | `governance` | opus | SDLC compliance, epic closure |
+| product-manager | `product-manager` | opus | PRDs, user stories, requirements |
+| system-architect | `system-architect` | opus | Technical architecture, API contracts |
+| security-analyst | `security-analyst` | opus | Security reviews, threat modeling |
+| senior-frontend-engineer | `senior-frontend-engineer` | sonnet | UI implementation, components |
+| senior-backend-engineer | `senior-backend-engineer` | sonnet | APIs, business logic, DB |
+| qa-test-automation-engineer | `qa-test-automation-engineer` | sonnet | Testing (unit/integration/E2E) |
+| devops-deployment-engineer | `devops-deployment-engineer` | sonnet | CI/CD, Docker, deployment |
+| ux-ui-designer | `ux-ui-designer` | opus | UX design, accessibility |
+| research | `research` | opus | Codebase exploration, technical research |
+| competitive-market-research | `competitive-market-research` | opus | Market analysis, competitive intel |
+| respect-the-spec | `respect-the-spec` | sonnet | Spec compliance validation |
+
+**Built-in agents (Explore, general-purpose, Plan):** NEVER use for SDLC work. See global CLAUDE.md "Built-in Agent Routing."
+
+---
+
+**Maintained By:** TopRig governance framework
+**Template Version:** v0.1.0

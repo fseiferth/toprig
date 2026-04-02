@@ -1,0 +1,44 @@
+# TopRig Project Configuration
+# Copy this file to your project root and customize values.
+# Used by: toprig init, CLAUDE.md template rendering, governance scripts
+#
+# Required fields are marked REQUIRED. All others are optional.
+
+# ─── Project Identity ─────────────────────────────────────────────────
+project_name: ""                    # REQUIRED (alphanumeric + hyphens only)
+platform_type: ""                   # e.g., "mobile-native", "web-app", "api-service", "monorepo"
+
+# ─── Testing ──────────────────────────────────────────────────────────
+test_email_pattern: "${project_name}${counter}${agent}@mailinator.com"  # Pattern for test emails
+
+# ─── Feature Tracking ────────────────────────────────────────────────
+feature_id:
+  format: "FEAT-XXX"               # Feature ID format used in code comments and commits
+  registry: "product-docs/FEATURE-REGISTRY.md"  # Path to feature registry (relative to project root)
+
+# ─── Infrastructure Providers ─────────────────────────────────────────
+# TopRig governs the process — it doesn't own the infrastructure.
+# Configure which tools your project uses. "none" = skip integration.
+infrastructure:
+  work_tracking:
+    provider: none                  # Options: beads | github-issues | none
+    # beads: no additional config needed (uses bd CLI)
+    # github-issues: uses gh CLI
+
+  secrets:
+    provider: none                  # Options: bitwarden | 1password | env-file | none
+    vault_id: ""                    # Required if provider is bitwarden or 1password
+    server: ""                      # e.g., "vault.bitwarden.eu" for Bitwarden EU
+
+  project_tracker:
+    provider: none                  # Options: linear | jira | github | none
+
+  code_intelligence:
+    provider: none                  # Options: serena | none (falls back to grep/read)
+
+# ─── Custom Agent Roster (optional) ──────────────────────────────────
+# Override default model assignments for specific agents.
+# Defaults: opus for architect/security/governance/research/PM, sonnet for engineers/QA/devops
+# agent_models:
+#   system-architect: opus
+#   senior-backend-engineer: sonnet
