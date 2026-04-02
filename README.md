@@ -1,5 +1,8 @@
 # TopRig
 
+![Version](https://img.shields.io/badge/version-v0.1.0--dev-orange)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue)
+
 **A governance engine for AI-assisted software development.**
 
 TopRig is a process framework and agent orchestration engine that brings structured governance to AI-powered SDLC workflows. It provides skills, agents, commands, scripts, and configuration templates that work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to enforce quality gates, handover protocols, and development best practices.
