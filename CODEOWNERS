@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# TopRig CODEOWNERS — SP9: Security-sensitive paths require maintainer review
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Security-critical files
+.toprig-secret-patterns*      @FrankSeiferth-WELL
+hooks/                        @FrankSeiferth-WELL
+.github/workflows/            @FrankSeiferth-WELL
+skills/toprig-release-gate/   @FrankSeiferth-WELL
+scripts/release-gate.sh       @FrankSeiferth-WELL
+
+# Templates and install (affect all consumers)
+templates/CLAUDE.md.template  @FrankSeiferth-WELL
+install.sh                    @FrankSeiferth-WELL
+uninstall.sh                  @FrankSeiferth-WELL

@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: ShellCheck
+        run: |
+          if ls scripts/*.sh 1>/dev/null 2>&1; then
+            shellcheck --severity=warning scripts/*.sh
+          fi
+          if ls hooks/*.sh 1>/dev/null 2>&1; then
+            shellcheck --severity=warning hooks/*.sh
+          fi
+          # Also check hook scripts without .sh extension
+          for f in hooks/pre-commit hooks/pre-push; do
+            if [ -f "$f" ]; then
+              shellcheck --severity=warning "$f"
+            fi
+          done
+          echo "✅ ShellCheck passed"
+
+      - name: Markdown lint
+        uses: DavidAnson/markdownlint-cli2-action@05e4e37dbb95bc3e6f48281e8eb6bc2764a8959b # v19.1.0
+        with:
+          globs: '**/*.md'
+        continue-on-error: true  # Advisory for v0.x
+
+      - name: YAML lint
+        run: |
+          pip install yamllint==1.35.1
+          find . -name '*.yml' -o -name '*.yaml' | grep -v '.git/' | xargs yamllint -d relaxed
+        continue-on-error: true  # Advisory for v0.x
+
+      - name: Verify skill structure
+        run: |
+          MISSING=0
+          for dir in skills/*/; do
+            if [ -d "$dir" ] && [ ! -f "${dir}SKILL.md" ]; then
+              echo "❌ Missing SKILL.md in $dir"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+          if [ "$MISSING" -gt 0 ]; then
+            exit 1
+          fi
+          echo "✅ All skills have SKILL.md"
+
+      - name: Verify agent frontmatter
+        run: |
+          MISSING=0
+          for f in agents/*.md; do
+            if [ -f "$f" ]; then
+              FIRST_LINE=$(head -1 "$f")
+              if [ "$FIRST_LINE" != "---" ]; then
+                echo "❌ $f does not start with frontmatter (---)"
+                MISSING=$((MISSING + 1))
+              fi
+            fi
+          done
+          if [ "$MISSING" -gt 0 ]; then
+            exit 1
+          fi
+          echo "✅ All agents have frontmatter"
+
+      - name: Verify .gitignore coverage
+        run: |
+          REQUIRED=('.env' '*.key' '*.pem' 'node_modules' '.toprig-approved-shas' '.toprig-secret-patterns')
+          MISSING=0
+          for pattern in "${REQUIRED[@]}"; do
+            if ! grep -q "$pattern" .gitignore; then
+              echo "❌ .gitignore missing: $pattern"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+          if [ "$MISSING" -gt 0 ]; then
+            exit 1
+          fi
+          echo "✅ .gitignore coverage verified"
+
+      - name: License header check (advisory for v0.x)
+        run: |
+          MISSING=0
+          for f in scripts/*.sh hooks/pre-commit hooks/pre-push hooks/install.sh; do
+            if [ -f "$f" ] && ! grep -q 'SPDX-License-Identifier' "$f"; then
+              echo "⚠️ Missing SPDX header: $f"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+          if [ "$MISSING" -gt 0 ]; then
+            echo "⚠️ $MISSING file(s) missing license headers (advisory — blocking at v1.0)"
+          fi
+          echo "✅ License header check complete"
+        continue-on-error: true  # Advisory for v0.x
